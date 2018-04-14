@@ -1,0 +1,52 @@
+Design
+
+- The data structures of threads and processes are modified in the /sys/sys/proc.h file by adding another attribute called t_tickets and p_tickets respectively that would attain the values of tickets numbers of the threads and processes
+
+
+
+- The data structure of runq is modified in the /sys/sys/runq.h file by adding a random number pool "randPool" of size 10, a variable to index the pool by called "randPoolIndex" and an array called total_tickets of size 64 to store the total number of tickets in the queue.
+
+
+
+- In kern_switch.c, the following alterations were made:
+a. In "runq_init", the randPool is populated with random integers and the index is initialized with 0.
+
+b. In "runq_add" and "runq_add_pri", the total tickets of the current queue index is incremented by the thread tickets.
+
+c. A new function runq_lottery is created that takes in a runq as a paramter. It attains the value of random number as "rand" generated respective to the randPoolIndex and wrapped around 10 (size of array in runque struct) by modulo. "rand" is wrapped around the total tickets of the current queue. The TAILQ_FOREACH macro is used to iterate over the thread tickets incermenting their values to "tickets" initialized in the top of the "runq_lottery" to implement the check needed. If the thread tickets is greater than one, threads tickets, corresponding process tickets & run queue total tickets of current thread index are decremented by one.
+
+d. In "runq_remove_idx", the run queue total tickets of the current run queue is decremented by the thread ticket number.
+
+
+
+- In "kern_thread.c", the following alterations were made;
+a. In "thread_init", the the thread number is initialized by 500.
+
+b. In "thread_link", the process tickets is incremented by the thread tickets linked.
+
+c. In "thread_unlink", the process tickets is decremented by the thread tickets linked.
+
+
+
+- In "thread_proc.c", the process tickets re initialized by zero.
+
+
+- In "kern_resource.c", the the process id is retreived and ordered to not alter the priorities if its a user process.
+
+
+- In sched_ule.c, the following alterations were made:
+a. Data structure of tdq is modified to add the 3 user run queues, "tdq_realtime_user", "tdq_timeshare_user" and "tdq_idle_user"
+
+b. In "tdq_setup", the user run queues are initialized.
+
+c. In "tdq_runq_add", the process id is attained to differentiate between a user process and a root process, this is done through a variable created called "procUser" that stores the id pointed to by the process. If statements are used to decide whether to pass the process to a root run queue or a user run queue.
+
+d. In "tdq_choose", the lottery function declared in kern_switch.c is called to function over the user run queues.
+
+e. In "sched_nice", the function is modified to check at first if its a user or a root process. In case its a user process, the thread tickets number is maintained between the range from 1-100000 incrementing the nice value to the thread tickets number.
+
+/*Gift System call*/
+- In sys/kern/sys.calls.master, the initialization of gift system call is added to the last line of the file specified.
+- A file called sys_gift.c is created after "make sysent".
+
+gift is not initialized, nor tested unfortunately 
